@@ -3,11 +3,11 @@ package com.catghoti.taxi.model;
 import java.util.*;
 
 public class OptimalSubset {
-    private List<Integer> order;
+    private List<Integer> arrangement;
     private double time;
 
     private OptimalSubset(List<Integer> order, double time) {
-        this.order = order;
+        this.arrangement = order;
         this.time = time;
     }
 
@@ -15,8 +15,8 @@ public class OptimalSubset {
         return this.time;
     }
 
-    public List<Integer> getOrder() {
-        return this.order;
+    public List<Integer> getArrangement() {
+        return this.arrangement;
     }
 
     public static OptimalSubset ofSubset(Set<Integer> subset, Double[][] timeMatrix) {

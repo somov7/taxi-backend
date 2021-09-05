@@ -1,37 +1,44 @@
 package com.catghoti.taxi.controller;
 
+import com.catghoti.taxi.model.Location;
 import com.catghoti.taxi.model.OptimalSubset;
+import com.catghoti.taxi.model.Order;
+import com.catghoti.taxi.repository.OrderRepository;
 import com.catghoti.taxi.service.TaxiService;
 import com.catghoti.taxi.model.TaxiList;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
 
 @Slf4j
 @RestController
 public class ApiController {
 
     private TaxiService taxiService;
+    private OrderRepository orderRepository;
 
     public ApiController(
-            TaxiService taxiService)
+            TaxiService taxiService,
+            OrderRepository orderRepository)
     {
         this.taxiService = taxiService;
+        this.orderRepository = orderRepository;
     }
 
     @CrossOrigin
-    @GetMapping("/taxi-api")
-    public ResponseEntity<TaxiList> getTaxis(
-            @RequestParam(value = "timeMatrix", required = true) Double[][] timeMatrix) {
-
+    @PostMapping(value = "/taxi-api/get-taxis", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ObjectId> getTaxis(
+            @RequestParam(value = "timeMatrix", required = true) Double[][] timeMatrix,
+            @RequestBody Location[] locations)
+    {
         List<Set<Set<Integer>>> partitions = taxiService.generatePartitions(timeMatrix.length - 1);
         Map<Set<Integer>, OptimalSubset> subsetToTimeMap = taxiService.generateSubsetToTimeMap(timeMatrix.length - 1, timeMatrix);
 
@@ -47,12 +54,29 @@ public class ApiController {
 
         TaxiList taxiList = new TaxiList();
         for (Set<Integer> subset: bestPartition) {
-            taxiList.addTaxi(subsetToTimeMap.get(subset).getOrder());
+            taxiList.addTaxi(subsetToTimeMap.get(subset).getArrangement());
         }
 
-        return new ResponseEntity<>(
-                taxiList,
+        Order order = new Order(List.of(locations), taxiList);
+        orderRepository.save(order);
+
+        return new ResponseEntity<ObjectId>(
+                order.getId(),
                 HttpStatus.OK
         );
     }
+
+    @CrossOrigin
+    @GetMapping("/taxi-api/order/{orderId}")
+    public ResponseEntity<Order> getOrder(@PathVariable ObjectId orderId)
+    {
+            Optional<Order> orderO = orderRepository.findById(orderId);
+            if (orderO.isPresent()) {
+                return new ResponseEntity<Order>(
+                        orderO.get(),
+                        HttpStatus.OK
+                );
+            }
+            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+     }
 }
